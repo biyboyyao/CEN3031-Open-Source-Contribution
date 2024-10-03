@@ -3406,45 +3406,39 @@ EditorHelpBit::HelpData EditorHelpBit::_get_theme_item_help_data(const StringNam
 	}
 
 	HelpData result;
-	bool found = false;
 
+	bool found = false;
 	const DocTools *dd = EditorHelp::get_doc_data();
 	StringName current_class_name = p_class_name;
-
 	while (!found && !current_class_name.is_empty()) {
 		HashMap<String, DocData::ClassDoc>::ConstIterator E = dd->class_list.find(current_class_name);
 		if (!E) {
-			break; // Class not found, stop search.
+			break; 
 		}
-
 		// Non-native theme items shouldn't be cached, nor translated.
 		const bool is_native = !E->value.is_script_doc;
 
 		for (const DocData::ThemeItemDoc &theme_item : E->value.theme_properties) {
 			HelpData current;
 			current.description = HANDLE_DOC(theme_item.description);
-			
-			// Handle deprecated and experimental messages.
 			if (theme_item.is_deprecated) {
-				current.deprecated_message = theme_item.deprecated_message.is_empty()
-					? TTR("This theme property may be changed or removed in future versions.")
-					: HANDLE_DOC(theme_item.deprecated_message);
+				if (theme_item.deprecated_message.is_empty()) {
+					current.deprecated_message = TTR("This theme property may be changed or removed in future versions.");
+				} else {
+					current.deprecated_message = HANDLE_DOC(theme_item.deprecated_message);
+				}
 			}
 			if (theme_item.is_experimental) {
-				current.experimental_message = theme_item.experimental_message.is_empty()
-					? TTR("This theme property may be changed or removed in future versions.")
-					: HANDLE_DOC(theme_item.experimental_message);
+				if (theme_item.experimental_message.is_empty()) {
+					current.experimental_message = TTR("This theme property may be changed or removed in future versions.");
+				} else {
+					current.experimental_message = HANDLE_DOC(theme_item.experimental_message);
+				}
 			}
 
-			// If the theme item matches, return it.
 			if (theme_item.name == p_theme_item_name) {
 				result = current;
 				found = true;
-
-				// If the theme item is from a base class, indicate its origin.
-				if (current_class_name != p_class_name) {
-					result.description += TTR("\n(Theme item inherited from base class: ") + current_class_name + ")";
-				}
 
 				if (!is_native) {
 					break;
@@ -3456,12 +3450,12 @@ EditorHelpBit::HelpData EditorHelpBit::_get_theme_item_help_data(const StringNam
 			}
 		}
 
-		if (found) {
+		if (found || E->value.inherits.is_empty()) {
 			break;
 		}
 
-		// Move up the inheritance chain if the theme item wasn't found.
-		current_class_name = E->value.inherits;
+		// Check for inherited theme items.
+		E = dd->class_list.find(E->value.inherits);
 	}
 
 	return result;
